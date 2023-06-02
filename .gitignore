@@ -1,0 +1,18 @@
+# Apple
+.DS_Store
+
+# VS code
+.vscode/
+
+# Information document
+*.dat
+*.fits
+*.txt
+
+# Ｇenerated file
+*.pdf
+*.npy
+*.png
+
+# Unnecessary folder
+
