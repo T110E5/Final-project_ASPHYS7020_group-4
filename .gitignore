@@ -13,6 +13,8 @@
 *.pdf
 *.npy
 *.png
+*.exe
+*.out
 
 # Unnecessary folder
 
