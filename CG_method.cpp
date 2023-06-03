@@ -1,15 +1,18 @@
 #include <cstdlib>
 #include <math.h>
 #include <time.h>
-
-
+#include <omp.h>
 double dotproduct(double* A, double * B, int N) {
 	double sum = 0.0;
-	for (int i = 0; i < N; i++) {
-		sum += A[i] * B[i];
-	}
-	return sum;
+	#pragma omp parallel for reduction(+ : sum)
+		for (int i = 0; i < N; i++)
+		{
+			sum += A[i] * B[i];
+			#pragma omp barrier
+		}
+		return sum;
 }
+
 
 double* vectorAdd(double* A, double* B, int N) {
 	double* temp = (double*)calloc(N, sizeof(double));
@@ -38,11 +41,13 @@ double* vectorZoom(double* A, double scaler, int N) {
 
 double* matrix_Times_vector(double* M, double* V, int N) {
 	double* temp = (double*)calloc(N, sizeof(double));
-	for (int i = 0; i < N; i++) {
-		for (int j = 0; j < N; j++) {
+	# pragma omp parllel for reduction (+:sum)
+	# pragma omp for collapse(2)
+	for (int i = 0; i < N; i++)
+	for (int j = 0; j < N; j++) {
 			temp[i] += M[i * N + j] * V[j];
+			# pragma omp barrier
 		}
-	}
 	return temp;
 	free(temp);
 }
