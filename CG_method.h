@@ -1,7 +1,10 @@
-// function def
+// Function declarations
 
-double dotproduct(double* A, double * B, int N);
-double* vectorAdd(double* A, double* B, int N);
-double* vectorSubtract(double* A, double* B, int N);
-double* vectorZoom(double* A, double scaler, int N);
-double* matrix_Times_vector(double* M, double* V, int N);
+double res_square(double *res_new);
+double dot_MV(double **A, double *x, double *b);
+double dot_VV(double *A, double *B);
+double make_MA(double **A);
+double make_Vx(double *x);
+double make_Vb(double *b);
+
+void CG_method(double *x0, double tol);

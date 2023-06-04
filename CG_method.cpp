@@ -3,6 +3,7 @@
 #include <math.h>
 #include <time.h>
 #include "def.h"
+#include "CG_method.h"
 
 
 void CG_method(double *x0, double tol){ // tol: tolerance
@@ -25,7 +26,9 @@ void CG_method(double *x0, double tol){ // tol: tolerance
     res_new= (double *) malloc(ROW*COL * sizeof(double));
 	// Initialize	when k=0 => xk = 0, rk = b, dk = rk; definition of matrix A, alpha and beta
 
-	make_A(A);
+	make_MA(A);
+	make_Vx(x);
+	make_Vb(b);
 	dot_MV(A, x, tmp); // A*d_k-1
 
 	for (int i=0; i<ROW; i++){
@@ -35,6 +38,7 @@ void CG_method(double *x0, double tol){ // tol: tolerance
 		}
 	}
 
+	// Loop
 	// Next x, r
 	for (k=0; k<iter_max ; k++){
 
@@ -43,7 +47,7 @@ void CG_method(double *x0, double tol){ // tol: tolerance
 		for (int i=0; i<ROW; i++){
 			for (int j=0; j<COL; j++){
 				x[COL*i+j] = x[COL*i+j] + alpha*d[COL*i+j];
-				res_new[COL*i+j] = res[COL*i+j] - alpha*tmp[COL*i+j];	
+				res_new[COL*i+j] = res[COL*i+j] - alpha*tmp[COL*i+j];
 			}
 		}
 
@@ -74,14 +78,14 @@ void CG_method(double *x0, double tol){ // tol: tolerance
 	printf("Iteration: %f", k);
 }
 
-//------------------
-//	Functions
-//------------------
+//----------------------
+//	Calculate Functions
+//----------------------
 double res_square(double *res_new){
 	double sum = 0;
 
 	for (int i=0; i<ROW*COL; i++){
-		sum += res_new[i];
+		sum += pow(res_new[i], 2);
 	}
 
 	return sum;
@@ -108,64 +112,14 @@ double dot_VV(double *A, double *B) {
 	return sum;
 }
 
-double make_A(double **A){ // generate the matrix A
+double make_MA(double **A){ // generate the matrix A
 
 }
-/*
-double* vectorAdd(double* A, double* B, int N) {
-	double* temp = (double*)calloc(N, sizeof(double));
-	for (int i = 0; i < N; i++) {
-		temp[i] = A[i] + B[i];
-	}
-	return temp;
-	free(temp);
+
+double make_Vx(double *x){ // generate the vector x
+
 }
 
-double* vectorSubtract(double* A, double* B, int N) {
-	double* temp = (double*)calloc(N, sizeof(double));
-	for (int i = 0; i < N; i++) {
-		temp[i] = A[i] - B[i];
-	}
-	return temp;
-	free(temp);
+double make_Vb(double *b){ // generate the vector b
+
 }
-
-double* vectorZoom(double* A, double scaler, int N) {
-	for (int i = 0; i < N; i++) {
-		A[i] = scaler * A[i];
-	}
-	return A;
-}
-
-double* matrix_Times_vector(double* M, double* V, int N) {
-	double* temp = (double*)calloc(N, sizeof(double));
-	for (int i = 0; i < N; i++) {
-		for (int j = 0; j < N; j++) {
-			temp[i] += M[i * N + j] * V[j];
-		}
-	}
-	return temp;
-	free(temp);
-}
-
-
-
-int main(int argc, char* argv[]){
-	double a[6] = { 0 };
-	double b[6] = { 0 };
-
-
-	for (int i = 0; i < 6; i++) {
-		a[i] = double(i);
-		b[i] = double(i);
-	}
-
-	
-	for (int i = 0; i < 6; i++) {
-		printf("%f\n",c[i]);
-	}
-	//printf("hello world");
-	
-	return EXIT_SUCCESS;
-}
-*/
