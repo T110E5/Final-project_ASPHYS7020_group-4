@@ -1,8 +1,8 @@
-#include <cmath>
+// Initial Setting
 
 #define pi M_PI
-#define ROW 5
-#define COL 5
+#define ROW 16 // it must be equal to N (grids)
+#define COL 16 // it must be equal to N (grids)
 #define iter_max 1000
 
 #define method 0 // case 0: CG method ; case 1: SOR method

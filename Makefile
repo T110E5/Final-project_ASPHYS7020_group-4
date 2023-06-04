@@ -1,5 +1,5 @@
-all: CG_method.cpp main.cpp
-	g++ CG_method.cpp main.cpp -o main.out -lgomp
+all: CG_method.cpp SOR_method.cpp main.cpp
+	g++ CG_method.cpp SOR_method.cpp main.cpp -o main.out -lgomp
 
 clean:
 	rm -f *.out
