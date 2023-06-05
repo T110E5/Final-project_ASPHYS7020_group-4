@@ -1,8 +1,12 @@
 #include <cstdio>
 #include <cstdlib>
+#define _USE_MATH_DEFINES
 #include <math.h>
 #include <time.h>
 
+
+double const L = 1.0,
+			 k = 2*M_PI/L;
 
 double dotproduct(double* A, double * B, int N) {
 	double sum = 0.0;
@@ -12,22 +16,18 @@ double dotproduct(double* A, double * B, int N) {
 	return sum;
 }
 
-double* vectorAdd(double* A, double* B, int N) {
-	double* temp = (double*)calloc(N, sizeof(double));
+double* vectorAdd(double* des, double* A, double* B, int N) {
 	for (int i = 0; i < N; i++) {
-		temp[i] = A[i] + B[i];
+		des[i] = A[i] + B[i];
 	}
-	return temp;
-	free(temp);
+	return des;
 }
 
-double* vectorSubtract(double* A, double* B, int N) {
-	double* temp = (double*)calloc(N, sizeof(double));
+double* vectorSubtract(double* des, double* A, double* B, int N) {
 	for (int i = 0; i < N; i++) {
-		temp[i] = A[i] - B[i];
+		des[i] = A[i] - B[i];
 	}
-	return temp;
-	free(temp);
+	return des;
 }
 
 double* vectorZoom(double* A, double scaler, int N) {
@@ -37,31 +37,153 @@ double* vectorZoom(double* A, double scaler, int N) {
 	return A;
 }
 
-double* matrix_Times_vector(double* M, double* V, int N) {
-	double* temp = (double*)calloc(N, sizeof(double));
+double* matrix_Times_vector(double* des, double* M, double* V, int N) {
 	for (int i = 0; i < N; i++) {
 		for (int j = 0; j < N; j++) {
-			temp[i] += M[i * N + j] * V[j];
+			des[i] += M[i * N + j] * V[j];
 		}
 	}
-	return temp;
-	free(temp);
+	return des;
 }
+
+double* ref_func(double* x, double* y, int N) {
+	int grid = N * N;
+	double* ref = (double*)calloc(grid, sizeof(double));
+	for (int i = 0; i < N; i++) {
+		for (int j = 0; j < N; j++) {
+			ref[i * N + j] = sin(k * x[i]) * sin(k * y[j]) + 1;
+		}
+	}
+	return ref;
+	free(ref);
+}
+
+double* density(double* x, double* y,int N) {
+	int grid = N * N;
+	double* d = (double*)calloc(grid, sizeof(double));
+	for (int i = 0; i < N; i++) {
+		for (int j = 0; j < N; j++) {
+			d[i * N + j] = -2 * sin(k * x[i]) * sin(k * y[j]);
+		}
+	}
+	return d;
+	free(d);
+}
+
+double* linspace(double start, double stop, int step) {
+	double* list = (double*)calloc(step, sizeof(double));
+	double dx = (stop - start) / (step-1);
+	for (int i = 0; i < step; i++) {
+		list[i] = start + i * dx;
+	}
+	return list;
+	free(list);
+}
+
 int main(int argc, char* argv[]){
-	double a[6] = { 0 };
-	double b[6] = { 0 };
-	
-	
-	for (int i = 0; i < 6; i++) {
-		a[i] = double(i);
-		b[i] = double(i);
+	int side = 4;
+	int N = side * side;
+	double h = L / (side - 1);
+	double* A = (double*)calloc(N*N, sizeof(double));
+	for (int i = 0; i < N; i++) {
+		if ((i / side != 0) && (i / side != side - 1) && (i % side != 0) && (i % side != side - 1)) {
+			int num = i * N + i;
+			A[num] = -4. / (h * h);
+			A[num - 1] = A[num + 1] = 1. / (h * h);
+			A[num - side] = A[num + side] = 1. / (h * h);
+		}
+		else {
+			int num = i * N + i;
+			A[num] = 1;
+		}
+		
 	}
-	
+	for (int i = 0; i < N; i++) {
+		for (int j = 0; j < N; j++) {
+			printf(" %2f ", A[i * N + j]);
+		}
+		printf(" \n");
+	}
+	double	* x = linspace(0, L, side),
+			* y = linspace(0, L, side);
+	for (int i = 0; i < side; i++) {
+		printf("%.2f", x[i]);
+	}
+	printf("\n");
+
+	double	* rho = density(x, y, side),
+			* ref_phi = ref_func(x,y,side);
 	/*
-	for (int i = 0; i < 6; i++) {
-		printf("%f\n",c[i]);
+	for (int i = 0; i < side; i++) {
+		printf("%.5f ", ref_phi[i]);
 	}
-	//printf("hello world");
 	*/
+	printf(" \n");
+	double alpha, beta;
+	double	* phi		= (double*)calloc(N, sizeof(double)),
+			* r			= (double*)calloc(N, sizeof(double)),
+			* r_temp	= (double*)calloc(N, sizeof(double)),
+			* p			= (double*)calloc(N, sizeof(double)),
+			* Ap		= (double*)calloc(N, sizeof(double)),
+			* tempv		= (double*)calloc(N, sizeof(double));
+	int iteration = 0;
+	double tolerance = 1.e-9;
+	for (int i = 0; i < N; i++) {
+		phi[i] = 1;
+	}
+	for (int i = 0; i < side; i++) {
+		for (int j = 0; j < side; j++) {
+			printf(" %1f ", rho[i * side + j]);
+		}
+		printf(" \n");
+	}
+	printf(" \n");
+	tempv = matrix_Times_vector(tempv, A, phi, N);
+	r = vectorSubtract(r, rho, tempv, N);
+	p = r;
+	
+	while (dotproduct(r,r,N)>tolerance) {
+		// A * p
+		Ap = matrix_Times_vector(Ap, A, p, N);
+		// r*r
+		/*
+		for (int i = 0; i < side; i++) {
+			for (int j = 0; j < side; j++) {
+				printf(" %.2f ", Ap[i * side + j]);
+			}
+			printf(" \n");
+		}
+		printf(" \n");
+		*/
+		double d1 = dotproduct(r, r, N);
+		// p^-1 * A * p
+		double d2 = dotproduct(p, Ap, N);
+		alpha = d1 / d2;
+		// phi = phi + alpha * p 
+		tempv = vectorZoom(p, alpha, N);
+		phi = vectorAdd(phi, phi, tempv, N);
+		// rnew = r - alpha * A * p
+		tempv = vectorZoom(Ap, alpha, N);
+		r_temp = vectorSubtract(r_temp, r, tempv, N);
+		// beta = (rnew * rnew) / (r * r)  
+		beta = dotproduct(r_temp, r_temp, N) / d1;
+		// p = r + beta * p
+		tempv = vectorZoom(p, beta, N);
+		p = vectorAdd(p, r, tempv, N);
+	}
+	
+	for (int i = 0; i < side; i++) {
+		for (int j = 0; j < side; j++) {
+			printf(" %f ", phi[i * side + j]);
+		}
+		printf(" \n");
+	}
+	printf(" \n");
+	for (int i = 0; i < side; i++) {
+		for (int j = 0; j < side; j++) {
+			printf(" %.2f ", ref_phi[i * side + j]);
+		}
+		printf(" \n");
+	}
 	return EXIT_SUCCESS;
 }
