@@ -32,31 +32,23 @@ void CG_method(double **u, double **rho, double dx, double dy){
 	make_Vb(b, rho, dx);
 	dot_MV(A, x, tmp); // A*d_k-1
 	int i,j;
-	int tid;
-	int NUM_THREADS=6;
+//	int NUM_THREADS=2;
 	omp_set_num_threads(NUM_THREADS);
-	#pragma omp parallel
-	{
-		tid=omp_get_thread_num();
-		int nt=omp_get_num_threads();
-	#pragma omp for
-		
-		for (int i=0; i<ROW; i++){
-			for (int j=0; j<COL; j++){
-				res[COL*i+j] = b[COL*i+j] - tmp[COL*i+j];
-				d[COL*i+j] = res[COL*i+j];
-				printf("%d/%d\n",tid,nt);
-			}
+	#pragma omp parallel for shared(res,d,b,tmp) private(i,j)
+	for (int i=0; i<ROW; i++){
+		for (int j=0; j<COL; j++){
+			res[COL*i+j] = b[COL*i+j] - tmp[COL*i+j];
+			d[COL*i+j] = res[COL*i+j];
 		}
 	}
-
 	// Loop
 	// Next x, r
 	int k;
+	omp_set_num_threads(NUM_THREADS);
 	for (int k=0; k<iter_max ; k++){
 		dot_MV(A, d, tmp);
 		alpha = dot_VV(res, res)/ dot_VV(d ,tmp);
-		#pragma omp parallel for shared(x,res_new,res,d,tmp) privated(i,j)
+		#pragma omp parallel for collapse(2) shared(x,res_new,res,d,tmp) private(i,j)
 		for (int i=0; i<ROW; i++){
 			for (int j=0; j<COL; j++){
 				x[COL*i+j] = x[COL*i+j] + alpha*d[COL*i+j];
@@ -89,7 +81,7 @@ void CG_method(double **u, double **rho, double dx, double dy){
 
 	// Next d
 		beta = dot_VV(res_new, res_new)/dot_VV(res, res);
-		#pragma omp parallel for shared(d,res,res_new) private(i,j)
+		#pragma omp parallel for collapse(2) shared(d,res,res_new) private(i,j)
 		for (int i=0; i<ROW; i++){
 			for (int j=0; j<COL; j++){
 				d[COL*i+j] = res_new[COL*i+j] - beta*d[COL*i+j];
@@ -111,7 +103,9 @@ void CG_method(double **u, double **rho, double dx, double dy){
 double res_square(double *res_new){
 	double sum = 0;
 	int i;
-	#pragma omp parallel for shared(sum, res_new) private(i) reduction(+:sum)
+//	int NUM_THREADS=2;
+	omp_set_num_threads(NUM_THREADS);
+	#pragma omp parallel for shared(res_new) private(i) reduction(+:sum)
 	for (int i=0; i<ROW*COL; i++){
 		sum += pow(res_new[i], 2);
 	}
@@ -126,7 +120,9 @@ void dot_MV(double **A, double *x, double *b){
     }
 	//first define a zero matrix to add up
     int i,j;
-    #pragma omp parallel for shared(b,A,x) private(i,j) reduction(+:b)
+//    int NUM_THREADS=2;
+    omp_set_num_threads(NUM_THREADS);
+    #pragma omp parallel for collapse(2) shared(A,x) private(i,j) 
     for (int i=0; i<ROW*COL; i++){
         for (int j=0; j<ROW*COL; j++){
             b[i] += A[i][j] * x[j];
@@ -137,7 +133,9 @@ void dot_MV(double **A, double *x, double *b){
 double dot_VV(double *A, double *B) {
 	double sum = 0.0;
 	int i;
-	#pragma omp parallel for shared(A,B,sum) private(i) reduction(+:sum)
+//	int NUM_THREADS=2;
+	omp_set_num_threads(NUM_THREADS);
+	#pragma omp parallel for shared(A,B) private(i) reduction(+:sum)
 	for (int i = 0; i < ROW*COL; i++) {
 		sum += A[i] * B[i];
 	}
@@ -195,7 +193,9 @@ void make_MA(double **A){ // generate the matrix A
 }
 void make_Vx(double **u, double *x){ // generate the vector x
 	int i,j;
-	#pragma omp parallel for shared(x,u) private(i,j)
+//	int NUM_THREADS=2;
+	omp_set_num_threads(NUM_THREADS);
+	#pragma omp parallel for collapse(2) shared(x,u) private(i,j)
 	for (int i=0; i<ROW; i++){
         for (int j=0; j<COL; j++){
         	x[ROW*i+j] = u[i][j];
@@ -204,6 +204,9 @@ void make_Vx(double **u, double *x){ // generate the vector x
 }
 
 void make_Vb(double *b, double **rho, double dx){ // generate the vector b
+	int i,j;
+//	int NUM_THREADS=2;
+	omp_set_num_threads(NUM_THREADS);
 	#pragma omp parallel for collapse(2) shared(b,rho) private(i,j)
 	for (int i=0; i<ROW; i++){
         for (int j=0; j<COL; j++){

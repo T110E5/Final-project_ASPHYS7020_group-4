@@ -14,6 +14,7 @@
 void ref_func(double **M, double dx, double dy) {
     double k = 2.0 * pi / L;                    // wavenumber
     int i,j;
+    omp_set_num_threads(NUM_THREADS);
     #pragma omp parallel for collapse(2) shared(M) private(i,j)
     for (int i=0; i<ROW; i++){
         for (int j=0; j<COL; j++){
@@ -26,6 +27,7 @@ void ref_func(double **M, double dx, double dy) {
 void init_rho(double **rho, double dx, double dy) {
     double k = 2.0 * pi / L;
     int i,j;
+    omp_set_num_threads(NUM_THREADS);
     #pragma omp parallel for collapse(2) shared(rho) private(i,j)
     for (int i=0; i<ROW; i++){
         for (int j=0; j<COL; j++){
@@ -51,7 +53,8 @@ void init_u(double **u) {
 double calculateError(double **u, double **u_ref) {
     double error = 0.0;
     int i,j;
-    #pragma omp parallel for shared(error, u, u_ref) private(i,j) reduction(+:error)
+    omp_set_num_threads(NUM_THREADS);
+    #pragma omp parallel for collapse(2) shared(u, u_ref) private(i,j) reduction(+:error)
     for (int i = 0; i < ROW; i++) {
         for (int j = 0; j < COL; j++) {
             error += abs(u[i][j] - u_ref[i][j]);
