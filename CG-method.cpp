@@ -11,7 +11,7 @@ double const L = 1.0,
 double dotproduct(double* A, double * B, int N) {
 	double sum = 0.0;
 	for (int i = 0; i < N; i++) {
-		sum += A[i] * B[i];
+		sum += (A[i] * B[i]);
 	}
 	return sum;
 }
@@ -39,6 +39,9 @@ double* vectorZoom(double* A, double scaler, int N) {
 
 double* matrix_Times_vector(double* des, double* M, double* V, int N) {
 	for (int i = 0; i < N; i++) {
+		des[i] = 0;
+	}
+	for (int i = 0; i < N; i++) {
 		for (int j = 0; j < N; j++) {
 			des[i] += M[i * N + j] * V[j];
 		}
@@ -51,7 +54,7 @@ double* ref_func(double* x, double* y, int N) {
 	double* ref = (double*)calloc(grid, sizeof(double));
 	for (int i = 0; i < N; i++) {
 		for (int j = 0; j < N; j++) {
-			ref[i * N + j] = sin(k * x[i]) * sin(k * y[j]) + 1;
+			ref[i * N + j] = sin(k * x[i]) * sin(k * y[j]);
 		}
 	}
 	return ref;
@@ -63,7 +66,7 @@ double* density(double* x, double* y,int N) {
 	double* d = (double*)calloc(grid, sizeof(double));
 	for (int i = 0; i < N; i++) {
 		for (int j = 0; j < N; j++) {
-			d[i * N + j] = -2 * sin(k * x[i]) * sin(k * y[j]);
+			d[i * N + j] = -2 * k * k * sin(k * x[i]) * sin(k * y[j]);
 		}
 	}
 	return d;
@@ -88,9 +91,9 @@ int main(int argc, char* argv[]){
 	for (int i = 0; i < N; i++) {
 		if ((i / side != 0) && (i / side != side - 1) && (i % side != 0) && (i % side != side - 1)) {
 			int num = i * N + i;
-			A[num] = -4. / (h * h);
-			A[num - 1] = A[num + 1] = 1. / (h * h);
-			A[num - side] = A[num + side] = 1. / (h * h);
+			A[num] = -4/(h*h);
+			A[num - 1] = A[num + 1] = 1/(h*h);
+			A[num - side] = A[num + side] = 1/(h*h);
 		}
 		else {
 			int num = i * N + i;
@@ -98,14 +101,17 @@ int main(int argc, char* argv[]){
 		}
 		
 	}
+
 	for (int i = 0; i < N; i++) {
 		for (int j = 0; j < N; j++) {
-			printf(" %2f ", A[i * N + j]);
+			printf(" %.2f ", A[i * N + j]);
 		}
 		printf(" \n");
 	}
+
 	double	* x = linspace(0, L, side),
 			* y = linspace(0, L, side);
+	
 	for (int i = 0; i < side; i++) {
 		printf("%.2f", x[i]);
 	}
@@ -119,7 +125,7 @@ int main(int argc, char* argv[]){
 	}
 	*/
 	printf(" \n");
-	double alpha, beta;
+	double alpha, beta, d1, d2;
 	double	* phi		= (double*)calloc(N, sizeof(double)),
 			* r			= (double*)calloc(N, sizeof(double)),
 			* r_temp	= (double*)calloc(N, sizeof(double)),
@@ -127,37 +133,43 @@ int main(int argc, char* argv[]){
 			* Ap		= (double*)calloc(N, sizeof(double)),
 			* tempv		= (double*)calloc(N, sizeof(double));
 	int iteration = 0;
-	double tolerance = 1.e-9;
+	double tolerance = 1.e-10;
+	/*
 	for (int i = 0; i < N; i++) {
 		phi[i] = 1;
 	}
+	*/
+	/*
 	for (int i = 0; i < side; i++) {
 		for (int j = 0; j < side; j++) {
-			printf(" %1f ", rho[i * side + j]);
+			if ((i == 0) || (i == side - 1) || (j == 0) || (j == side - 1)) {
+				int num = i * side + j;
+				rho[num] = 1;
+			}
+		}
+		
+	}
+	*/
+	for (int i = 0; i < side; i++) {
+		for (int j = 0; j < side; j++) {
+			printf(" %.2f ", rho[i * side + j]);
 		}
 		printf(" \n");
 	}
 	printf(" \n");
 	tempv = matrix_Times_vector(tempv, A, phi, N);
-	r = vectorSubtract(r, rho, tempv, N);
+	r = vectorSubtract(r,rho,tempv,N);
 	p = r;
-	
+	printf("%.16f\n", dotproduct(r, r, N));
 	while (dotproduct(r,r,N)>tolerance) {
+		
 		// A * p
 		Ap = matrix_Times_vector(Ap, A, p, N);
+
 		// r*r
-		/*
-		for (int i = 0; i < side; i++) {
-			for (int j = 0; j < side; j++) {
-				printf(" %.2f ", Ap[i * side + j]);
-			}
-			printf(" \n");
-		}
-		printf(" \n");
-		*/
-		double d1 = dotproduct(r, r, N);
+		d1 = dotproduct(r, r, N);
 		// p^-1 * A * p
-		double d2 = dotproduct(p, Ap, N);
+		d2 = dotproduct(p, Ap, N);
 		alpha = d1 / d2;
 		// phi = phi + alpha * p 
 		tempv = vectorZoom(p, alpha, N);
@@ -170,6 +182,15 @@ int main(int argc, char* argv[]){
 		// p = r + beta * p
 		tempv = vectorZoom(p, beta, N);
 		p = vectorAdd(p, r, tempv, N);
+		//printf("beta %.2f \n", beta);
+		r = r_temp;
+		iteration++;
+		printf("alpha %f\nbeta %f\nd1 %f\nd2 %f\n", alpha, beta, d1, d2);
+		if (iteration > 1) {
+			//break;
+		}
+		
+		
 	}
 	
 	for (int i = 0; i < side; i++) {
@@ -185,5 +206,6 @@ int main(int argc, char* argv[]){
 		}
 		printf(" \n");
 	}
+	//printf("test%d", -2 * 1);
 	return EXIT_SUCCESS;
 }
