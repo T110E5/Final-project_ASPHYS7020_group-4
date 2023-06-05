@@ -3,14 +3,8 @@
 #include <math.h>
 #include <time.h>
 #include "def.h"
-
-/*
-try push
-#include <cstdlib>
-#include <math.h>
-#include <time.h>
 #include <omp.h>
-*/
+
 /*
 Variable used for iteration or intermediate results within the loops can be declared as private
 Variable used to accumulate or aggregate results across iterations or threads need to be declared as shared
@@ -91,28 +85,6 @@ double start = omp_get_wtime();
 double end = omp_get_wtime();
 printf("Work took %f seconds \n", end-start);
 */
-/*
-int main{
- #pragma omp parallel shared(A,B) private(i,j){}
- double a[6] = { 0 };
- double b[6] = { 0 };
-
-
- for (int i = 0; i < 6; i++) {
-  a[i] = double(i);
-  b[i] = double(i);
- }
-
- 
- for (int i = 0; i < 6; i++) {
-  printf("%f\n",c[i]);
- }
- //printf("hello world");
- 
- return EXIT_SUCCESS;
-}
-*/
-
 
 void CG_method(double *x0, double tol){ // tol: tolerance
 	int i, j, k;
@@ -137,10 +109,12 @@ void CG_method(double *x0, double tol){ // tol: tolerance
 	make_A(A);
 	dot_MV(A, x, tmp); // A*d_k-1
 
-	for (int i=0; i<ROW; i++){
-		for (int j=0; j<COL; j++){
-			res[COL*i+j] = b[COL*i+j] - tmp[COL*i+j];
-			d[COL*i+j] = res[COL*i+j];
+	# pragma omp parallel for shared(res,b,tmp,d) private(i,j){
+		for (int i=0; i<ROW; i++){
+			for (int j=0; j<COL; j++){
+				res[COL*i+j] = b[COL*i+j] - tmp[COL*i+j];
+				d[COL*i+j] = res[COL*i+j];
+			}
 		}
 	}
 
@@ -171,37 +145,36 @@ void CG_method(double *x0, double tol){ // tol: tolerance
 
 	// Next d
 		beta = dot_VV(res_new, res_new)/dot_VV(res, res);
-		for (int i=0; i<ROW; i++){
-			for (int j=0; j<COL; j++){
-				d[COL*i+j] = res_new[COL*i+j] - beta*d[COL*i+j];
-				res[COL*i+j] = res_new[COL*i+j];
+		# pragma omp parallel for shared(res,b,tmp,d) private(i,j){
+			for (int i=0; i<ROW; i++){
+				for (int j=0; j<COL; j++){
+					d[COL*i+j] = res_new[COL*i+j] - beta*d[COL*i+j];
+					res[COL*i+j] = res_new[COL*i+j];
+				}
 			}
-		}
+			//not sure whether should I collapse, will it be efficiency?
 	// Iterate
-
-	}
+		}
 	printf("Iteration: %f", k);
 }
-
 //------------------
 //	Functions
 //------------------
 double res_square(double *res_new){
 	double sum = 0;
-
+	# pragma omp parellel for reduction(+:sum) shared(sum,res_new) private(i)
 	for (int i=0; i<ROW*COL; i++){
 		sum += res_new[i];
 	}
-
 	return sum;
 }
 
 double dot_MV(double **A, double *x, double *b){
-
+	int i,j;
     for (int i=0; i<ROW*COL; i++){
             b[i] = 0;
     }
-
+	#pragma omp paralle for reduction(+:b) shared(b,A,x) privated(i,j)
     for (int i=0; i<ROW*COL; i++){
         for (int j=0; j<ROW*COL; j++){
             b[i] += A[i][j] * x[j];
@@ -210,7 +183,9 @@ double dot_MV(double **A, double *x, double *b){
 }
 
 double dot_VV(double *A, double *B) {
+	int i;
 	double sum = 0.0;
+	#pragma omp paralle for reduction(+:sum) shared(sum,A,B) privated(i)
 	for (int i = 0; i < ROW*COL; i++) {
 		sum += A[i] * B[i];
 	}
