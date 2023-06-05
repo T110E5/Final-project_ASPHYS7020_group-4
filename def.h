@@ -1,15 +1,22 @@
 // Initial Setting
 
-#define pi M_PI
-#define ROW 16 // it must be equal to N (grids)
-#define COL 16 // it must be equal to N (grids)
+#define N   4  // number of computing cells
+#define ROW N   // it must be equal to N (grids)
+#define COL N   // it must be equal to N (grids)
+
+#define pi  M_PI
 #define iter_max 1000
 
-#define method 0 // case 0: CG method ; case 1: SOR method
+const double tol    = 1e-6; // tol: tolerance
+
+//------------------------
+// case 0: CG method
+// case 1: SOR method
+//------------------------
+#define method 0
 
 // 2D Poisson Equation: Constants
-const double L = 1.0;   // 1-D computational domain size
-const int N = 16;       // number of computing cells
-const double u0 = 1.0;  // background density
-const double amp = 0.5; // sinusoidal amplitude
-const double cfl = 1.0; // Courant condition factor
+const double L      = 1.0;  // 1-D computational domain size
+const double u0     = 0.0;  // background density
+const double amp    = 1.0;  // sinusoidal amplitude
+const double cfl    = 1.0;  // Courant condition factor

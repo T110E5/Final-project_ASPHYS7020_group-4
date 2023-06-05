@@ -4,3 +4,7 @@
 #include <time.h>
 #include "def.h"
 #include "SOR_method.h"
+
+void SOR_method(void){
+
+}
