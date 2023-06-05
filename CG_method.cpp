@@ -77,7 +77,7 @@ void CG_method(double **u, double **rho, double dx, double dy){
 		beta = dot_VV(res_new, res_new)/dot_VV(res, res);
 		for (int i=0; i<ROW; i++){
 			for (int j=0; j<COL; j++){
-				d[COL*i+j] = res_new[COL*i+j] - beta*d[COL*i+j];
+				d[COL*i+j] = res_new[COL*i+j] + beta*d[COL*i+j];
 				res[COL*i+j] = res_new[COL*i+j];
 			}
 		}
@@ -86,7 +86,7 @@ void CG_method(double **u, double **rho, double dx, double dy){
 	}
 	// end-time
 
-	printf("Iteration: %d", iter);
+	printf("Iteration: %d \n", iter);
 }
 
 //-----------------------
@@ -99,10 +99,10 @@ double res_square(double *res_new){
 		sum += pow(res_new[i], 2);
 	}
 
-	return sum;
+	return sqrt(sum);
 }
 
-double dot_MV(double **A, double *x, double *b){
+void dot_MV(double **A, double *x, double *b){
 
     for (int i=0; i<ROW*COL; i++){
             b[i] = 0;
@@ -127,23 +127,26 @@ double dot_VV(double *A, double *B) {
 //	Make matrix and vectors of CG method
 //----------------------------------------
 void make_MA(double **A){ // generate the matrix A
-	for (int i=0; i<ROW*ROW; i++){
-        for (int j=0; j<ROW*ROW; j++){
+	for (int i=0; i<ROW*COL; i++){
+        for (int j=0; j<ROW*COL; j++){
 			A[i][j] = 0;
             if (i==j){
-                A[i][j] = 4;
+                A[i][j] = -4;
             }
             else if (i==j-1 || i==j+1){
-                A[i][j]=-1;
+                if ( (i%ROW != 0 && i%ROW != ROW-1) || ( j%COL != 0 && j%COL != COL-1) )
+                {
+                    A[i][j] = 1;
+                }
             }
             else if (i==j-ROW || i==j+ROW){
-                A[i][j]=-1;
+                A[i][j] = 1;
             }            
 		}
 	}
 }
 
-double make_Vx(double **u, double *x){ // generate the vector x
+void make_Vx(double **u, double *x){ // generate the vector x
 	for (int i=0; i<ROW; i++){
         for (int j=0; j<COL; j++){
         	x[ROW*i+j] = u[i][j];
@@ -151,7 +154,7 @@ double make_Vx(double **u, double *x){ // generate the vector x
     }
 }
 
-double make_Vb(double *b, double **rho, double dx){ // generate the vector b
+void make_Vb(double *b, double **rho, double dx){ // generate the vector b
 	for (int i=0; i<ROW; i++){
         for (int j=0; j<COL; j++){
 			if (i==0 || i==ROW-1 || j==0 || j==COL-1){

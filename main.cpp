@@ -5,6 +5,80 @@
 #include "CG_method.h"
 #include "SOR_method.h"
 
+int main (void){
+    void ref_func(double **M, double dx, double dy);
+    void init_rho(double **rho, double dx, double dy);
+    void init_u(double **u);
+    double calculateError(double **u, double **u_ref);
+    void save_M(double **M, const std::string& filename);
+
+    //-----------------------------
+    //  2D Poisson Equation
+    //-----------------------------
+    double **u, **u_ref, **rho;
+
+    // Derived constants
+    double dx = L / (N - 1); // spatial resolution
+    double dy = L / (N - 1); // spatial resolution
+
+    u     = (double **) malloc(ROW * sizeof(double));
+    u_ref = (double **) malloc(ROW * sizeof(double));
+    rho   = (double **) malloc(ROW * sizeof(double));
+    for (int i=0;i<ROW;i++){
+        u[i]      = (double *) malloc(COL * sizeof(double));
+        u_ref[i]  = (double *) malloc(COL * sizeof(double));
+        rho[i]    = (double *) malloc(COL * sizeof(double));        
+    }    
+
+    // Initialize rho and u values
+    init_rho(rho, dx, dy);
+    init_u(u);
+
+    // Compute u_ref values
+    ref_func(u_ref, dx, dy);
+
+    //-----------------------------
+    //  Poisson Solver
+    //-----------------------------
+    double err;
+    switch (method){
+        case 0:
+            /* CG method code */
+            CG_method(u, rho, dx, dy);
+            err = calculateError(u, u_ref);
+            for (int i = 0; i < ROW; i++){
+                for (int j = 0; j < COL; j++){
+                  printf(" %f ", u[i][j]);
+                }
+                printf("\n");
+            }
+            printf("\n");
+            for (int i = 0; i < ROW; i++){
+                for (int j = 0; j < COL; j++){
+                  printf(" %f ", u_ref[i][j]);
+                }
+                printf("\n");
+            }
+            printf("Error: %f \n", err);            
+            // save array u
+            save_M(u, "./RESULT/CG_result.txt");
+            break;
+
+        case 1:
+            /* SOR method code */
+            //SOR_method();
+            // save array u
+            //fileroot = "./RESULT/SOR_result.txt";
+            //save_M(u, fileroot);            
+            break;
+    }
+
+    free(u);
+    free(u_ref);
+
+    return 0;    
+}
+
 //---------------------
 //  Setting
 //---------------------
@@ -14,7 +88,8 @@ void ref_func(double **M, double dx, double dy) {
     double k = 2.0 * pi / L;                      // wavenumber
     for (int i=0; i<ROW; i++){
         for (int j=0; j<COL; j++){
-            M[i][j] = (amp * amp) * sin(k * i * dx) * sin(k * j * dy);
+            //M[i][j] = (amp * amp) * sin(k * i * dx) * sin(k * j * dy);
+            M[i][j] = sin(pi*i*dx) * cos(pi*j*dy);
         }
     }
 }
@@ -24,7 +99,8 @@ void init_rho(double **rho, double dx, double dy) {
     double k = 2.0 * pi / L;
     for (int i=0; i<ROW; i++){
         for (int j=0; j<COL; j++){
-            rho[i][j] = -2.0 * (amp * amp) * (k * k) * sin(k * i * dx) * sin(k * j * dy);
+            //rho[i][j] = -2.0 * (amp * amp) * (k * k) * sin(k * i * dx) * sin(k * j * dy);
+            rho[i][j] = -1/(2*pow(pi,2))*sin(pi*i*dx)*cos(pi*j*dy);
         }
     }
 }
@@ -54,14 +130,13 @@ double calculateError(double **u, double **u_ref) {
 }
 
 // Save the array to the text file
-/*
 void save_M(double **M, const std::string& filename){
     FILE* file = fopen(filename.c_str(), "w");
 
     if (file != nullptr){
         for (int i = 0; i < ROW; i++){
             for (int j = 0; j < COL; j++){
-                fprintf(file, "%f", M[i][j]);
+                fprintf(file, " %f ", M[i][j]);
             }
             fprintf(file, "\n");
         }
@@ -73,67 +148,6 @@ void save_M(double **M, const std::string& filename){
         printf("(can't find the TXT file in your folder 'RESULT', \n");
         printf("try to create TXT file and check the variable 'fileroot' in main.cpp!) \n");
     }
-}*/
-
-int main (void){
-    char *fileroot;
-
-    //-----------------------------
-    //  2D Poisson Equation
-    //-----------------------------
-    double **u, **u_ref, **rho;
-
-    // Derived constants
-    double dx = L / (N - 1); // spatial resolution
-    double dy = L / (N - 1); // spatial resolution
-
-    u     = (double **) malloc(ROW * sizeof(double));
-    u_ref = (double **) malloc(ROW * sizeof(double));
-    for (int i=0;i<ROW;i++){
-        u[i]      = (double *) malloc(COL * sizeof(double));
-        u_ref[i]  = (double *) malloc(COL * sizeof(double));
-    }    
-
-    // Initialize rho and u values
-    init_rho(rho, dx, dy);
-    init_u(u);
-
-    // Compute u_ref values
-    ref_func(u_ref, dx, dy);
-
-    //-----------------------------
-    //  Poisson Solver
-    //-----------------------------
-    switch (method){
-        case 0:
-            /* CG method code */
-            CG_method(u, rho, dx, dy);
-            calculateError(u, u_ref);
-            for (int i = 0; i < ROW; i++)
-            for (int j = 0; j < COL; j++)
-            {
-                printf("%f ", u[i][j]);
-            }
-            
-            // save array u
-            //fileroot = "./RESULT/CG_result.txt";
-            //save_M(u, fileroot);
-            break;
-
-        case 1:
-            /* SOR method code */
-            //SOR_method();
-            // save array u
-            //fileroot = "./RESULT/SOR_result.txt";
-            //save_M(u, fileroot);            
-            break;
-    }
-
-    free(u);
-    free(u_ref);
-
-    return 0;    
 }
-
 
 

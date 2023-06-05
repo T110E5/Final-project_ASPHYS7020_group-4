@@ -1,6 +1,8 @@
+#include <cmath>
+
 // Initial Setting
 
-#define N   4  // number of computing cells
+#define N   6  // number of computing cells
 #define ROW N   // it must be equal to N (grids)
 #define COL N   // it must be equal to N (grids)
 
