@@ -12,7 +12,9 @@
 
 // Define a reference analytical solution
 void ref_func(double **M, double dx, double dy) {
-    double k = 2.0 * pi / L;                      // wavenumber
+    double k = 2.0 * pi / L;                    // wavenumber
+    int i,j;
+    #pragma omp parallel for collapse(2) shared(M) private(i,j)
     for (int i=0; i<ROW; i++){
         for (int j=0; j<COL; j++){
             M[i][j] =  sin(pi* i * dx) * cos(pi* j * dy);
@@ -23,6 +25,8 @@ void ref_func(double **M, double dx, double dy) {
 // Define an initial density distribution: f(x,y)
 void init_rho(double **rho, double dx, double dy) {
     double k = 2.0 * pi / L;
+    int i,j;
+    #pragma omp parallel for collapse(2) shared(rho) private(i,j)
     for (int i=0; i<ROW; i++){
         for (int j=0; j<COL; j++){
             rho[i][j] =-( 2.0* pi * pi* sin(pi* i * dx) * cos(pi * j * dy));
@@ -46,6 +50,8 @@ void init_u(double **u) {
 // Function to calculate the error between u and u_ref
 double calculateError(double **u, double **u_ref) {
     double error = 0.0;
+    int i,j;
+    #pragma omp parallel for shared(error, u, u_ref) private(i,j) reduction(+:error)
     for (int i = 0; i < ROW; i++) {
         for (int j = 0; j < COL; j++) {
             error += abs(u[i][j] - u_ref[i][j]);
