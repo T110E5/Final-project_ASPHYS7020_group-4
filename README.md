@@ -25,6 +25,7 @@ It is lucky for us to have a nice CG method performance. Nonetheless, from the p
 * https://sites.cs.ucsb.edu/~gilbert/cs240a/old/cs240aSpr2011/hw2
 * An Introduction to the Conjugate Gradient Method Without the Agonizing Pain, Jonathan Richard Shewchuk
 August 4, 1994
+____
 ## Ps.
 Our SOR method didn't put at here. We use the old version on Python, which is the same as the homework before. However, it was still a disaster.
 
