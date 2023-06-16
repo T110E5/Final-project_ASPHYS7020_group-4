@@ -16,5 +16,12 @@ Download the document and run the program below:
 `$ make`
 
 `./a.out`
+## 4. Result
+We choose N as 64, 80, 96, 112, and 128 to calculate how well the parallelization does. 
+The number of threads was chosen from 1 to 8. All of the settings were changing on hands (They are not in the script.)
+It is lucky for us to have a nice CG method performance. Nonetheless, from the plot of efficiency to the number of threads, we know the former result was accidentally correct. The issue is that the iteration will change after doing the same process for several times. It may mean that our code or parallelization wasn't good enough. There may be some mistakes when making the **_A_** matrix. To make our code better, we should try to sparse the A matrix first because there are lots of zeros inside it.
+## Ps.
+Our SOR method didn't put at here. We use the old version on Python, which is the same as the homework before. However, it was still a disaster.
 
+**_Readme is written by Kuo-Jui. If there is any question, please mail me._**
 、
