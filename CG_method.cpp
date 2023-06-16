@@ -1,130 +1,221 @@
 #include <cstdio>
 #include <cstdlib>
-#include <time.h>
-#include <omp.h>
 #include <math.h>
-#include <iostream>
-#define pi M_PI
-#define NUM_THREADS 8
+#include <time.h>
+#include "def.h"
+#include "CG.h"
+#include <omp.h>
 
+void CG_method(double **u, double **rho, double dx, double dy){
+	double **A;
+	double *x, *b, *d, *tmp, *res, *res_new;
+	double alpha, beta;
 
-// initial condition
-double error=0.0;
-int i,j;
-const double L=1.0;
-const double cfl=1.0; 
-int N=1000;
-int Row=N;
-int Col=N;
-void ref_func(double **M, double dx, double dy){
-    for (int i=0; i<Row; i++){
-        for(int j=0; j<Col; j++){
-            M[i][j]=sin(pi*i*dx)*cos(pi*j*dy);
-        }
-    }
-}
+	int iter;
 
-void init_rho(double **rho, double dx, double dy){
-    omp_set_num_threads(NUM_THREADS);
-    #pragma omp parallel for collapse(2) shared(rho) private(i,j)
-    for(int i=0; i<Row; i++){
-        for(int j=0; j<Col; j++){
-            rho[i][j]=-( 2.0*pi*pi*sin(pi*i*dx)*cos(pi*j*dy));
-        }
-    }
-}
-//Initialize the potential to one
-void init_u(double **u){
-    omp_set_num_threads(NUM_THREADS);
-    #pragma omp parallel for collapse(2) shared(u) private(i,j)
-    for (int i=0; i<Row; i++){
-        for(int j=0; j<Col; j++){
-            u[i][j]=0;
-        }
-    }
-}
-int main (void){
-    omp_set_num_threads(NUM_THREADS);
-    int i, j;
-    double dx=L/(N-1);
-    double dy=L/(N-1);
-    int iter;
-    double tol=1.e-7;
-    
-    double **u     = (double **) malloc(Row * sizeof(double));
-    double **u_in  = (double **) malloc(Row * sizeof(double));
-    double **u_ref = (double **) malloc(Row * sizeof(double));
-    double **rho   = (double **) malloc(Row * sizeof(double));
-    for (int i=0;i<Row;i++){
-        u[i]      = (double *) malloc(Col * sizeof(double));
-        u_in[i]   = (double *) malloc(Col * sizeof(double));
-        u_ref[i]  = (double *) malloc(Col * sizeof(double));
-        rho[i]    = (double *) malloc(Col * sizeof(double));        
-    }
-    init_u(u);
-    init_rho(rho,dx,dy);
-    //Compute reference function
-    ref_func(u_ref, dx, dy);
-//SOR method______________________________________________________________
-    double w = 1.8;
+	double start=omp_get_wtime();
 
-    double start, end;
-    double time_used;
-    //backup the data
-    u_in=u;
-    start = omp_get_wtime();
-    for (int iter=1;iter<10000000;iter++){
-    	double err = 0.0;
-        double res;
-        omp_set_num_threads(NUM_THREADS);
-        #pragma omp parallel for shared(res,u) private(i,j) reduction(+:err)
-        for (i=1; i<N-1; i++){
-        	for (j=1;j<N-1;j++){
-        		int node = (i+j)%2;
-        		if (node ==0){
-        			res = (u[i+1][j]+u[i-1][j]+u[i][j-1]+u[i][j+1]-4 * u_in[i][j]-dx * dx * rho[i][j])/(dx * dx);
-            			u[i][j]=u_in[i][j]+w*dx*dx*res/4;
-            			err += dx * dx * abs(res/u[i][j])/(N * N);
-            		}
-        		else if (node==1){
-        			res = (u[i+1][j]+u[i-1][j]+u[i][j-1]+u[i][j+1]-4 * u_in[i][j]-dx * dx * rho[i][j])/(dx * dx);
-            			u[i][j]=u_in[i][j]+w * dx * dx * res/4;
-            			err += dx * dx * abs(res/u[i][j])/(N * N);
-        		}
-        	}
-        }
-    // Boundary conditions
-    	for (int j=0; j<Col; j++){
-    		u[0][j] = 0;
-        	u[Row-1][j] = 0;
+	A = (double **) malloc(ROW*COL * sizeof(double));
+    	for (int i=0;i<ROW*COL;i++){
+      		A[i] = (double *) malloc(ROW*COL * sizeof(double));
     	}
+    	x	= (double *) malloc(ROW*COL * sizeof(double));
+    	b      	= (double *) malloc(ROW*COL * sizeof(double));
+    	d      	= (double *) malloc(ROW*COL * sizeof(double));
+	tmp	= (double *) malloc(ROW*COL * sizeof(double));
+    	res    	= (double *) malloc(ROW*COL * sizeof(double));
+    	res_new	= (double *) malloc(ROW*COL * sizeof(double));
+	
+	// Initialize	when k=0 => xk = 0, rk = b, dk = rk; definition of matrix A, alpha and beta
+	make_MA(A);
+	make_Vx(u, x);
+	make_Vb(b, rho, dx);
+	dot_MV(A, x, tmp); // A*d_k-1
+	int i,j;
+//	int NUM_THREADS=2;
+	omp_set_num_threads(NUM_THREADS);
+	#pragma omp parallel for shared(res,d,b,tmp) private(i,j)
+	for (int i=0; i<ROW; i++){
+		for (int j=0; j<COL; j++){
+			res[COL*i+j] = b[COL*i+j] - tmp[COL*i+j];
+			d[COL*i+j] = res[COL*i+j];
+		}
+	}
+	// Loop
+	// Next x, r
+	int k;
+	omp_set_num_threads(NUM_THREADS);
+	for (int k=0; k<iter_max ; k++){
+		dot_MV(A, d, tmp);
+		alpha = dot_VV(res, res)/ dot_VV(d ,tmp);
+		#pragma omp parallel for collapse(2) shared(x,res_new,res,d,tmp) private(i,j)
+		for (int i=0; i<ROW; i++){
+			for (int j=0; j<COL; j++){
+				x[COL*i+j] = x[COL*i+j] + alpha*d[COL*i+j];
+				res_new[COL*i+j] = res[COL*i+j] - alpha*tmp[COL*i+j];
+			}
+		}
 
-    	for (int i=0; i<Row; i++) {
-        	u[i][0] = u[i][1];
-        	u[i][Col-1] = u[i][Col-2];
-    	}
-    	//printf("err %f \n",err);
-    	
-    	iter+=1;
-    	end = omp_get_wtime();
-    	if (err<tol){
-        	time_used = end-start;
-        	#pragma omp parallel for collapse(2) shared(u,u_ref) private(i,j) reduction(+:error)
-        	for (i=0; i<Row; i++){
-        		for (j=0; j<Col; j++){
-        			#pragma omp atomic
-        			error += abs(u[i][j]-u_ref[i][j])/(N * N); 
-                	}
-            	}
-            	printf("error is %f \n Spending %f\n iterations %d \n", error, time_used, iter);
-            	break;
+	// Convergence check |Ax -b|^2 =< tol
+		if (res_square(res_new) < tol){
+
+			// New array u
+			int i,j;
+			#pragma omp parallel for shared(u,x) private(i,j)
+			for (int i=0; i<ROW; i++){
+				for (int j=0; j<COL; j++){
+					u[i][j] = x[ROW*i+j];
+				}
+			}
+
+			free(A);
+			free(x);
+			free(b);
+			free(d);
+			free(res);
+			free(res_new);
+
+			iter = k;
+			break;
+		}
+
+	// Next d
+		beta = dot_VV(res_new, res_new)/dot_VV(res, res);
+		#pragma omp parallel for collapse(2) shared(d,res,res_new) private(i,j)
+		for (int i=0; i<ROW; i++){
+			for (int j=0; j<COL; j++){
+				d[COL*i+j] = res_new[COL*i+j] - beta*d[COL*i+j];
+				res[COL*i+j] = res_new[COL*i+j];
+			}
+		}
+	// Iterate
+
+	}
+	double end =omp_get_wtime();
+	printf("Work time %f seconds",end-start);
+
+	printf("Iteration: %d\n", iter);
+}
+
+//-----------------------
+//	Calculate Functions
+//-----------------------
+double res_square(double *res_new){
+	double sum = 0;
+	int i;
+//	int NUM_THREADS=2;
+	omp_set_num_threads(NUM_THREADS);
+	#pragma omp parallel for shared(res_new) private(i) reduction(+:sum)
+	for (int i=0; i<ROW*COL; i++){
+		sum += pow(res_new[i], 2);
+	}
+
+	return sqrt(sum);
+}
+
+void dot_MV(double **A, double *x, double *b){
+
+    for (int i=0; i<ROW*COL; i++){
+            b[i] = 0;
+    }
+	//first define a zero matrix to add up
+    int i,j;
+//    int NUM_THREADS=2;
+    omp_set_num_threads(NUM_THREADS);
+    #pragma omp parallel for collapse(2) shared(A,x) private(i,j) 
+    for (int i=0; i<ROW*COL; i++){
+        for (int j=0; j<ROW*COL; j++){
+            b[i] += A[i][j] * x[j];
         }
     }
-//End SOR________________________________________________________________
-    // Free memory
-    free(u);
-    free(rho);
-    free(u_ref);
-    return 0;
 }
-		
+
+double dot_VV(double *A, double *B) {
+	double sum = 0.0;
+	int i;
+//	int NUM_THREADS=2;
+	omp_set_num_threads(NUM_THREADS);
+	#pragma omp parallel for shared(A,B) private(i) reduction(+:sum)
+	for (int i = 0; i < ROW*COL; i++) {
+		sum += A[i] * B[i];
+	}
+	return sum;
+}
+
+//----------------------------------------
+//	Make matrix and vectors of CG method
+//----------------------------------------
+void make_MA(double **A){ // generate the matrix A
+    	int i,j,k,l;
+	for (k=0;k<ROW;k++){
+        for (l=0;l<COL;l++){
+            if (k==l){
+                if (k==0 || k==ROW-1){
+                  for (i=0;i<ROW;i++){
+                      A[COL*k+i][ROW*l+i]   = 1;
+                  }
+                }
+                else{
+                  for (i=0;i<ROW;i++){
+                      if (i == 0){
+                          A[COL*k+i][ROW*l+i]   = -1;
+                          A[COL*k+i+1][ROW*l+i] = 1;
+                      }
+                      else if (i == ROW-1){
+                          A[COL*k+i][ROW*l+i]   = -1;
+                          A[COL*k+i-1][ROW*l+i] = 1;
+                      }
+                      else {
+                          A[COL*k+i][ROW*l+i]   = -4;
+                          A[COL*k+i-1][ROW*l+i] = 1;
+                          A[COL*k+i+1][ROW*l+i] = 1;
+                      }
+                  }
+                }
+            }
+            else if ( abs(k-l) == 1 && k!=0 && k!=ROW-1){
+                for (i=0;i<ROW;i++){
+                  if (i==0 || i==ROW-1)
+                    A[COL*k+i][ROW*l+i] = 0;
+                  else
+                    A[COL*k+i][ROW*l+i] = 1;
+                }
+            }
+            else{
+                for (i=0;i<ROW;i++){
+                    for (j=0;j<COL;j++){
+                        A[COL*k+i][ROW*l+j] = 0;
+                    }
+                }
+            }
+		}
+	}
+}
+void make_Vx(double **u, double *x){ // generate the vector x
+	int i,j;
+//	int NUM_THREADS=2;
+	omp_set_num_threads(NUM_THREADS);
+	#pragma omp parallel for collapse(2) shared(x,u) private(i,j)
+	for (int i=0; i<ROW; i++){
+        for (int j=0; j<COL; j++){
+        	x[ROW*i+j] = u[i][j];
+        }
+    }
+}
+
+void make_Vb(double *b, double **rho, double dx){ // generate the vector b
+	int i,j;
+//	int NUM_THREADS=2;
+	omp_set_num_threads(NUM_THREADS);
+	#pragma omp parallel for collapse(2) shared(b,rho) private(i,j)
+	for (int i=0; i<ROW; i++){
+        for (int j=0; j<COL; j++){
+			if (i==0 || i==ROW-1																							){
+				b[ROW*i+j] = 0; // Boundary
+			}
+			else{
+				b[ROW*i+j] = (dx * dx) * rho[i][j];
+			}
+        }
+    }
+}
