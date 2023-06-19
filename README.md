@@ -8,7 +8,7 @@ To increase the efficiency of the process, we use the OpenMP to calculate some d
 * C++
 * OPENMP
 Project is created with:
-* T110E5, jsp: Create the first version and second version of CG method.
+* T110E5, jsp (Ning Chen): Create the first version and second version of CG method.
 * Kuo-Jui: Do the final edition and add the parallel parts.
 ## 3. Setup
 Download the document and run the program below:
